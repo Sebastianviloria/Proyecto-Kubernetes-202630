@@ -67,6 +67,7 @@ TAMANOS = {
     "ordenar": {"baja": 100000, "media": 1000000, "alta": 3000000},
     "fib": {"baja": 25, "media": 30, "alta": 35},
     "matriz": {"baja": 60, "media": 120, "alta": 250},
+    "primos": {"baja": 20000, "media": 300000, "alta": 2000000},
 }
 
 

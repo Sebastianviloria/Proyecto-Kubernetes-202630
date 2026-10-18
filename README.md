@@ -149,3 +149,48 @@ curso. La entrega vence **antes de la clase de la semana 12**.
 2. En el README del repositorio se debe explicar la implementación.
 3. En el README se debe agregar un link a un video de YouTube con el demo del proyecto.
 4. El grupo completo debe estar disponible para defender la entrega.
+
+## Implementación del grupo
+
+### Cómo funciona `gestor_jobs.py`
+
+El recorrido completo es:
+
+`gestor_jobs.py` (cliente Python `kubernetes`, sin `kubectl`) → `Job` (batch/v1) → Pod creado desde la plantilla del Job → contenedor con argumentos `[tarea, N]` → el programa imprime en stdout (la última línea es un JSON) → el gestor lee los logs del Pod, que encuentra por la etiqueta `job-name=<nombre>`.
+
+Las 7 funciones que completan el esqueleto:
+
+| función | qué hace |
+|---|---|
+| `seleccionar` | Muestra los menús de lenguaje, tarea y complejidad. Toma la imagen del catálogo, arma `args = [tarea, str(N)]` con la tabla `TAMANOS` y devuelve la fila de `NIVELES` del nivel elegido. |
+| `crear_job` | Arma el contenedor `V1Container` (nombre `tarea`, `image_pull_policy="Never"`, `args`, `V1ResourceRequirements` con requests y limits), el `V1PodSpec(restart_policy="Never")`, el `V1JobSpec(backoff_limit=0)` y el `V1Job`. Lo envía con `create_namespaced_job` al namespace `estudiantes-202630`. |
+| `describir_estado` | Traduce el `status` de un Job a texto según sus contadores `active`, `succeeded` y `failed` (con `or 0`, porque valen `None` mientras Kubernetes no los fija): "en ejecucion", "termino correctamente", "fallo" o "pendiente (el Pod todavia no ha arrancado)". |
+| `listar_jobs` | Llama a `list_namespaced_job` y devuelve `[(nombre, estado)]`, usando `describir_estado` para cada Job. |
+| `consultar_logs` | Busca el Pod con `list_namespaced_pod` y `label_selector=job-name=<nombre>`, toma el primero y lee su log con `read_namespaced_pod_log(_preload_content=False)`, decodificando `.data` en UTF-8. |
+| `jobs_terminados` | Devuelve los nombres de los Jobs sin Pods activos y con al menos un Pod correcto o fallido; los que siguen corriendo no aparecen. |
+| `eliminar_job` | Llama a `delete_namespaced_job` con `V1DeleteOptions(propagation_policy="Background")`, para que Kubernetes borre también el Pod del Job. |
+
+Además, `consultar_estado(nombre)` es un ayudante que lee un Job con `read_namespaced_job_status` y reutiliza `describir_estado`.
+
+### Por qué esos campos del Job
+
+- **La tarea y N van en `args`, no en `command`.** `command` reemplaza el `ENTRYPOINT` de la imagen (en `imagenes/python/Dockerfile` es `ENTRYPOINT ["python", "/app/tareas.py"]`) y el contenedor falla con "executable file not found". `args` se añade al `ENTRYPOINT`, así el programa recibe `<tarea> <N>`.
+- **`backoff_limit=0`**: cero reintentos. Si la tarea falla (por ejemplo, `OOMKilled`), el Job queda como fallido de inmediato.
+- **`restart_policy="Never"`**: el Pod no reinicia el contenedor, así el fallo queda visible en lugar de ocultarse en reinicios.
+- **`image_pull_policy="Never"`**: las imágenes `kubernates-202630-*` son locales en Minikube y no existen en ningún registry, así que Kubernetes no debe intentar descargarlas.
+
+### Tarea extra: `primos`
+
+- **Qué hace:** cuenta los primos hasta N por división por prueba, sin criba, a propósito, para consumir CPU. Imprime el progreso cuando N ≥ 100000 y su JSON final trae `n`, `cuenta` y `ultimo`.
+- **Tamaños** (tabla `TAMANOS`): baja N=20000, media N=300000, alta N=2000000. En la prueba, alta tardó unos 11 segundos.
+- **Archivos tocados:**
+  - `imagenes/python/tareas.py`: la función `primos` y su entrada en `TAREAS`.
+  - `catalogo/tareas.json`: `"primos"` en las tareas de python.
+  - `entrega/gestor_jobs.py`: la fila `primos` en `TAMANOS`.
+- Solo existe en Python; después de cambiarla hay que reconstruir la imagen en Minikube.
+
+> Probado en macOS (Apple Silicon); los comandos para Windows están en la sección de Preparación.
+
+## Video del demo
+
+Link: PENDIENTE

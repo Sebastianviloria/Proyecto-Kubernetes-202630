@@ -193,4 +193,4 @@ Además, `consultar_estado(nombre)` es un ayudante que lee un Job con `read_name
 
 ## Video del demo
 
-Link: PENDIENTE
+Link: https://youtu.be/AL-KuDAMS-Y
